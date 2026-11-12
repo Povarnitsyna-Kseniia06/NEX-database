@@ -1,0 +1,130 @@
+USE NEX;
+
+/* ==================== 1. НЕЯВНОЕ СОЕДИНЕНИЕ + WHERE + ORDER BY ==================== */
+SELECT ai_tools.ai_tool_name,
+       ai_tools.developer,
+       tariffs.tariff_name,
+       tariffs.price,
+       tariffs.currency
+FROM ai_tools, tariffs
+WHERE ai_tools.ai_tool_name = tariffs.ai_tool_name
+AND ai_tools.free_version = 1
+ORDER BY ai_tools.ai_tool_name;
+
+/* ==================== 2. ЯВНОЕ СОЕДИНЕНИЕ JOIN ==================== */
+SELECT ai_tools.ai_tool_name,
+       ai_tools.developer,
+       tariffs.tariff_name,
+       tariffs.price,
+       tariffs.currency
+FROM ai_tools
+JOIN tariffs
+ON ai_tools.ai_tool_name = tariffs.ai_tool_name;
+
+/* ==================== 3. SUM, AVG, COUNT, MAX, MIN ==================== */
+SELECT SUM(price) AS total_price,
+       AVG(price) AS average_price,
+       COUNT(*) AS tariff_count,
+       MAX(price) AS max_price,
+       MIN(price) AS min_price
+FROM tariffs;
+
+/* ==================== 4. GROUP BY + HAVING ==================== */
+SELECT category,
+       COUNT(*) AS amount
+FROM ai_characteristics
+GROUP BY category
+HAVING COUNT(*) > 1;
+
+/* ==================== 5. ВЛОЖЕННЫЙ ПОДЗАПРОС IN ==================== */
+SELECT ai_tool_name,
+       developer
+FROM ai_tools
+WHERE ai_tool_name IN (
+    SELECT ai_tool_name
+    FROM ai_characteristics
+    WHERE category = 'Программирование'
+);
+
+/* ==================== 6. ВЛОЖЕННЫЙ ПОДЗАПРОС ALL ==================== */
+SELECT ai_tool_name,
+       tariff_name,
+       price
+FROM tariffs
+WHERE price >= ALL (
+    SELECT price
+    FROM tariffs
+);
+
+/* ==================== 7. ФУНКЦИИ IF И CASE ==================== */
+SELECT ai_tool_name,
+       IF(free_version = 1, 'Есть', 'Нет') AS free_access,
+       CASE
+           WHEN record_status = 'Актуальная'
+           THEN 'Можно использовать'
+           ELSE 'Нужно проверить'
+       END AS status_result
+FROM ai_tools;
+
+/* ==================== 8. CREATE VIEW ==================== */
+CREATE VIEW nex_ai_tariffs_view AS
+SELECT ai_tools.ai_tool_name,
+       ai_tools.developer,
+       tariffs.tariff_name,
+       tariffs.price,
+       tariffs.currency
+FROM ai_tools
+JOIN tariffs
+ON ai_tools.ai_tool_name = tariffs.ai_tool_name;
+
+SELECT *
+FROM nex_ai_tariffs_view;
+
+/* ==================== 9. ВРЕМЕННОЕ ПРЕДСТАВЛЕНИЕ WITH ==================== */
+WITH category_count AS (
+    SELECT category,
+           COUNT(*) AS amount
+    FROM ai_characteristics
+    GROUP BY category
+)
+SELECT *
+FROM category_count
+ORDER BY amount DESC;
+
+/* ==================== 10. EXPLAIN + CREATE INDEX ==================== */
+EXPLAIN
+SELECT *
+FROM ai_tools
+WHERE developer = 'OpenAI';
+
+CREATE INDEX nex_idx_developer
+ON ai_tools(developer);
+
+EXPLAIN
+SELECT *
+FROM ai_tools
+WHERE developer = 'OpenAI';
+
+/* ==================== 11. ТРАНЗАКЦИЯ START TRANSACTION ==================== */
+START TRANSACTION;
+
+UPDATE ai_tools
+SET record_status = 'Требует проверки'
+WHERE ai_tool_name = 'DeepSeek';
+
+SELECT ai_tool_name,
+       record_status
+FROM ai_tools
+WHERE ai_tool_name = 'DeepSeek';
+
+ROLLBACK;
+
+/* ==================== 12. PREPARE + EXECUTE + DEALLOCATE ==================== */
+PREPARE nex_ai_query FROM
+'SELECT ai_tool_name, developer
+ FROM ai_tools
+ WHERE free_version = 1';
+
+EXECUTE nex_ai_query;
+
+DEALLOCATE PREPARE nex_ai_query;
